@@ -66,14 +66,14 @@ begin
                 active_display <= '0';
             end if;
         
-            --Rang of no output in horizontal
+            --Range of no output in horizontal
             if(h_counter = h_sync_periode_start) then
                 h_sync <= '0';
             elsif(h_counter = h_sync_periode_end) then
                 h_sync <= '1';
             end if;
             
-            --Rang of no output in vertical
+            --Range of no output in vertical
             if(v_counter = v_sync_periode_start) then
                 v_sync <= '0';
             elsif(v_counter = v_sync_periode_end) then
