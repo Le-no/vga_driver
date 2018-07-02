@@ -31,13 +31,13 @@ constant h_display      : INTEGER   := 640;
 constant h_front_porch  : INTEGER   := 16;
 constant h_sync_pulse   : INTEGER   := 96;
 constant h_back_porch   : INTEGER   := 48;
-constant h_sum          : INTEGER   := h_display + h_front_porch + h_sync_pulse + h_back_porch;
+constant h_sum          : INTEGER   := h_display + h_front_porch + h_sync_pulse + h_back_porch - 1;
 --Vertical (rows)
 constant v_display      : INTEGER   := 480;
 constant v_front_porch  : INTEGER   := 10;
 constant v_sync_pulse   : INTEGER   := 2;
 constant v_back_porch   : INTEGER   := 33;
-constant v_sum          : INTEGER   := v_display + v_front_porch + v_sync_pulse + v_back_porch;
+constant v_sum          : INTEGER   := v_display + v_front_porch + v_sync_pulse + v_back_porch - 1;
 
 --borders
 constant h_sync_periode_start   : INTEGER   := h_display + h_front_porch - 1;
@@ -52,12 +52,52 @@ signal v_counter : INTEGER RANGE 0 TO v_sum := 0;
 
 begin
 
+
+---------------------------------------------------------------
+--COUNTER
+--
+--Info:
+--Counting lines and pixels-per-line
+---------------------------------------------------------------
 counter : process(clk)
 begin
     if(rising_edge(clk)) then
         if(rst = '1') then
             h_counter <= 0;
             v_counter <= 0;
+        else
+            --if right border?
+            if(h_counter = h_sum) then
+                h_counter <= 0;
+                
+                --if bottom?
+                if(v_counter = v_sum) then
+                    v_counter <= 0;
+                else
+                    v_counter <= v_counter + 1;
+                end if;
+                
+            else
+                h_counter <= h_counter + 1;
+            end if;
+        end if;
+    end if;
+end process;
+
+
+---------------------------------------------------------------
+--BORDER SIGNALS
+--
+--Info:
+--Set Signals between images, porches and pulses
+---------------------------------------------------------------
+def_borders : process(clk)
+begin
+    if(rising_edge(clk)) then
+        if(rst = '1') then
+            v_sync <= '0';
+            h_sync <= '0';
+            active_display <= '0';
         else
             --Range of output
             if(h_counter < h_display and v_counter < v_display) then
@@ -84,9 +124,13 @@ begin
     end if;
 end process;
 
----------------------
---clock
----------------------
+
+---------------------------------------------------------------
+--CLOCK
+--
+--Info:
+--For image refreshing, specific MHz value is needed.
+---------------------------------------------------------------
 clk_wiz_0_0 : clk_wiz_0
 port map(
 	clk_in1 => clk_100MHz,
