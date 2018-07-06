@@ -1,17 +1,18 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
-use ieee.std_logic_unsigned.all;
-use ieee.std_logic_arith.all;
+use IEEE.NUMERIC_STD.ALL;
 
 entity sync is
   Port ( 
     clk_100MHz      : in std_logic;
     rst             : in std_logic;
     
-    clk_out         : out std_logic;
-    active_display  : out std_logic;
     h_sync          : out std_logic;
-    v_sync          : out std_logic
+    v_sync          : out std_logic;
+    
+    v_counter_out       : out std_logic_vector(31 downto 0);
+    h_counter_out       : out std_logic_vector(31 downto 0);
+    active_display      : out std_logic
   );
 end sync;
 
@@ -27,28 +28,27 @@ port
  end component;
 
 --Horizontal (pixel clocks)
-constant h_display      : INTEGER   := 640;
-constant h_front_porch  : INTEGER   := 16;
-constant h_sync_pulse   : INTEGER   := 96;
-constant h_back_porch   : INTEGER   := 48;
-constant h_sum          : INTEGER   := h_display + h_front_porch + h_sync_pulse + h_back_porch - 1;
+constant h_display      : std_logic_vector(31 downto 0)   := x"00000280"; --640
+constant h_front_porch  : std_logic_vector(31 downto 0)   := x"00000010"; --16
+constant h_sync_pulse   : std_logic_vector(31 downto 0)   := x"00000060"; --96
+constant h_back_porch   : std_logic_vector(31 downto 0)   := x"00000030"; --48
+constant h_sum          : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(h_display) + unsigned(h_front_porch) + unsigned(h_sync_pulse) + unsigned(h_back_porch) - 1);
 --Vertical (rows)
-constant v_display      : INTEGER   := 480;
-constant v_front_porch  : INTEGER   := 10;
-constant v_sync_pulse   : INTEGER   := 2;
-constant v_back_porch   : INTEGER   := 33;
-constant v_sum          : INTEGER   := v_display + v_front_porch + v_sync_pulse + v_back_porch - 1;
+constant v_display      : std_logic_vector(31 downto 0)   := x"000001E0"; --480
+constant v_front_porch  : std_logic_vector(31 downto 0)   := x"0000000A"; --10
+constant v_sync_pulse   : std_logic_vector(31 downto 0)   := x"00000002"; --2
+constant v_back_porch   : std_logic_vector(31 downto 0)   := x"00000021"; --33
+constant v_sum          : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(v_display) + unsigned(v_front_porch) + unsigned(v_sync_pulse) + unsigned(v_back_porch) - 1);
 
 --borders
-constant h_sync_periode_start   : INTEGER   := h_display + h_front_porch - 1;
-constant v_sync_periode_start   : INTEGER   := v_display + v_front_porch - 1;
-constant h_sync_periode_end     : INTEGER   := h_sync_periode_start + h_sync_pulse - 1;
-constant v_sync_periode_end     : INTEGER   := v_sync_periode_start + v_sync_pulse - 1;
+constant h_sync_periode_start   : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(h_display) + unsigned(h_front_porch) - 1);
+constant v_sync_periode_start   : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(v_display) + unsigned(v_front_porch) - 1);
+constant h_sync_periode_end     : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(h_sync_periode_start) + unsigned(h_sync_pulse) - 1);
+constant v_sync_periode_end     : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(v_sync_periode_start) + unsigned(v_sync_pulse) - 1);
 
-
-signal clk  : STD_LOGIC;
-signal h_counter : INTEGER RANGE 0 TO h_sum := 0;
-signal v_counter : INTEGER RANGE 0 TO v_sum := 0;
+signal clk  : std_logic;
+signal h_counter : std_logic_vector(31 downto 0) := (others => '0');
+signal v_counter : std_logic_vector(31 downto 0) := (others => '0');
 
 begin
 
@@ -63,27 +63,28 @@ counter : process(clk)
 begin
     if(rising_edge(clk)) then
         if(rst = '1') then
-            h_counter <= 0;
-            v_counter <= 0;
+            h_counter <= (others => '0');
+            v_counter <= (others => '0');
         else
             --if right border?
-            if(h_counter = h_sum) then
-                h_counter <= 0;
+            if(unsigned(h_counter) = unsigned(h_sum)) then
+                h_counter <= (others => '0');
                 
                 --if bottom?
-                if(v_counter = v_sum) then
-                    v_counter <= 0;
+                if(unsigned(v_counter) = unsigned(v_sum)) then
+                    v_counter <= (others => '0');
                 else
-                    v_counter <= v_counter + 1;
+                    v_counter <= std_logic_vector( unsigned(v_counter) + 1);
                 end if;
                 
             else
-                h_counter <= h_counter + 1;
+                h_counter <=  std_logic_vector( unsigned(h_counter) + 1);
             end if;
         end if;
     end if;
 end process;
-
+v_counter_out <= v_counter;
+h_counter_out <= h_counter;
 
 ---------------------------------------------------------------
 --BORDER SIGNALS
@@ -100,23 +101,23 @@ begin
             active_display <= '0';
         else
             --Range of output
-            if(h_counter < h_display and v_counter < v_display) then
+            if( unsigned(h_counter) < unsigned(h_display) and unsigned(v_counter) < unsigned(v_display)) then
                 active_display <= '1';
             else
                 active_display <= '0';
             end if;
         
             --Range of no output in horizontal
-            if(h_counter = h_sync_periode_start) then
+            if(unsigned(h_counter) = unsigned(h_sync_periode_start)) then
                 h_sync <= '0';
-            elsif(h_counter = h_sync_periode_end) then
+            elsif(unsigned(h_counter) = unsigned(h_sync_periode_end)) then
                 h_sync <= '1';
             end if;
             
             --Range of no output in vertical
-            if(v_counter = v_sync_periode_start) then
+            if(unsigned(v_counter) = unsigned(v_sync_periode_start)) then
                 v_sync <= '0';
-            elsif(v_counter = v_sync_periode_end) then
+            elsif(unsigned(v_counter) = unsigned(v_sync_periode_end)) then
                 v_sync <= '1';
             end if;
             
@@ -136,6 +137,5 @@ port map(
 	clk_in1 => clk_100MHz,
 	clk_out1 => clk
 );
-clk_out    <= clk;
 
 end Behavioral;
