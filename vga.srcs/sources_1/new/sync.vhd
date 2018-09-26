@@ -9,10 +9,14 @@ entity sync is
     
     h_sync          : out std_logic;
     v_sync          : out std_logic;
+    active_display  : out std_logic;
     
-    v_counter_out       : out std_logic_vector(31 downto 0);
-    h_counter_out       : out std_logic_vector(31 downto 0);
-    active_display      : out std_logic
+    h_counter_out   : out std_logic_vector(31 downto 0);
+    v_counter_out   : out std_logic_vector(31 downto 0);
+    
+    h_size          : out std_logic_vector(31 downto 0);
+    v_size          : out std_logic_vector(31 downto 0)
+    
   );
 end sync;
 
@@ -29,7 +33,7 @@ port
 
 --Horizontal (pixel clocks)
 constant h_display      : std_logic_vector(31 downto 0)   := x"00000280"; --640
-constant h_front_porch  : std_logic_vector(31 downto 0)   := x"00000010"; --16
+constant h_front_porch  : std_logic_vector(31 downto 0)   := x"00000010"; --16 
 constant h_sync_pulse   : std_logic_vector(31 downto 0)   := x"00000060"; --96
 constant h_back_porch   : std_logic_vector(31 downto 0)   := x"00000030"; --48
 constant h_sum          : std_logic_vector(31 downto 0)   := std_logic_vector( unsigned(h_display) + unsigned(h_front_porch) + unsigned(h_sync_pulse) + unsigned(h_back_porch) - 1);
@@ -51,7 +55,6 @@ signal h_counter : std_logic_vector(31 downto 0) := (others => '0');
 signal v_counter : std_logic_vector(31 downto 0) := (others => '0');
 
 begin
-
 
 ---------------------------------------------------------------
 --COUNTER
@@ -83,8 +86,10 @@ begin
         end if;
     end if;
 end process;
-v_counter_out <= v_counter;
 h_counter_out <= h_counter;
+v_counter_out <= v_counter;
+h_size <= h_display;
+v_size <= v_display;
 
 ---------------------------------------------------------------
 --BORDER SIGNALS
@@ -96,8 +101,8 @@ def_borders : process(clk)
 begin
     if(rising_edge(clk)) then
         if(rst = '1') then
-            v_sync <= '0';
-            h_sync <= '0';
+            v_sync <= '1';
+            h_sync <= '1';
             active_display <= '0';
         else
             --Range of output
@@ -115,9 +120,9 @@ begin
             end if;
             
             --Range of no output in vertical
-            if(unsigned(v_counter) = unsigned(v_sync_periode_start)) then
+            if((unsigned(v_counter) = unsigned(v_sync_periode_start)) and (unsigned(h_sum) = unsigned(h_counter))) then
                 v_sync <= '0';
-            elsif(unsigned(v_counter) = unsigned(v_sync_periode_end)) then
+            elsif((unsigned(v_counter) = unsigned(v_sync_periode_end)) and (unsigned(h_sum) = unsigned(h_counter))) then
                 v_sync <= '1';
             end if;
             

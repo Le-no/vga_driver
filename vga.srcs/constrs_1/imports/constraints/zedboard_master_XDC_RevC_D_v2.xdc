@@ -76,8 +76,8 @@
 # Clock Source - Bank 13
 # ---------------------------------------------------------------------------- 
 
-create_clock -period 10 [get_ports clk];  # Command should be testet!!
-set_property PACKAGE_PIN Y9 [get_ports {clk}];  # "GCLK"
+create_clock -period 10 [get_ports clk_in];  # Command should be testet!!
+set_property PACKAGE_PIN Y9 [get_ports {clk_in}];  # "GCLK"
 
 # ----------------------------------------------------------------------------
 # JA Pmod - Bank 13
